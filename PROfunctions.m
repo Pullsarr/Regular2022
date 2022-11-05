@@ -1,5 +1,5 @@
 classdef PROfunctions
-    %Wszystkie funkcyjki
+    %% Opis wszystkich funkcji
     %   no wszystkie wszystkie
 
     properties
@@ -30,7 +30,7 @@ classdef PROfunctions
 
         function obj = minimum_Rx(inputArg1,inputArg2,mi)
             inputArg1.min(1,2)=100;
-            for i=1:41
+            for i=1:height(inputArg1.data)
                 x= inputArg2(i,6)-inputArg2(i,3)*mi; %Cx-Cz*mi
                 if x<inputArg1.min(1,2)
                     inputArg1.min(1,1)=inputArg2(i,1);
@@ -47,7 +47,7 @@ classdef PROfunctions
             Vmax=0;
             g=9.81;
             Rymax=0;
-            for i=1:41
+            for i=1:height(inputArg1.data)
                 for V=0:0.1:12
                     Ps=interp1(Ciag.data(:,1),Ciag.data(:,2),V,"linear")*g;
                     Fz= (1/2)*rho*V^2*inputArg2(i,3)*inputArg1.S;
@@ -61,10 +61,10 @@ classdef PROfunctions
                 if (Ry>Rymax) && (V>Vmax)
                     Vmax=V;
                     Rymax=Ry;
-                    inputArg1.maxw(1)=inputArg2(i,1);
-                    inputArg1.maxw(2)=deg2rad(inputArg2(i,1));
-                    inputArg1.maxw(3)=inputArg2(i,3);
-                    inputArg1.maxw(4)=inputArg2(i,6);
+                    inputArg1.maxw(1)=inputArg2(21,1);
+                    inputArg1.maxw(2)=deg2rad(inputArg2(21,1));
+                    inputArg1.maxw(3)=inputArg2(21,3);
+                    inputArg1.maxw(4)=inputArg2(21,6);
                     inputArg1.maxV= V;
                 end
             end
@@ -74,15 +74,12 @@ classdef PROfunctions
             rho=1.225;
             ay=0;
             wspKOWAL=1.3;
+            inputArg1.start= 0;
             g=9.81;
             deltai=0.001;
             inputArg1.PAYLOAD=0;
-            if inputArg1.maxw(3)>inputArg1.min(4)
-                Czstart=inputArg1.maxw(3);
-            else
-                Czstart=inputArg1.min(4);
-            end
-            for m=2.5:0.1:100
+            Czstart=inputArg1.min(4);
+            for m=1:0.1:100
                 mc=m+inputArg1.Mo;
                 Lx=0;
                 Ly=0;
@@ -91,7 +88,7 @@ classdef PROfunctions
                 V=0;
                 alpha=0;
                 Q=mc*g;
-                alpha_w=deg2rad(inputArg1.maxw(1));
+                alpha_w=deg2rad(inputArg1.min(4)+2);
                 for i=deltai:deltai:timeW
                     Fz= (1/2)*rho*Vx^2*Czstart*inputArg1.S;
                     Ps=interp1(Ciag.data(:,1),Ciag.data(:,2),V,"linear",'extrap')*g;
@@ -110,12 +107,14 @@ classdef PROfunctions
                     inputArg1.path(int32(i/deltai),8)=Ly;
                     inputArg1.path(int32(i/deltai),9)=0;
                     inputArg1.path(int32(i/deltai),10)=0;
-                    if (Lx>Lstart) || (Fz>1.1^2*Q)
+                    if (Lx>Lstart) || (Fz>1.2^2*Q)
                         iend=i;
                         break
                     end
                 end
                 if (Lx>Lstart)
+                    inputArg1.start(1)= 0;
+                    inputArg1.start(2)= i;
                     break
                 end
                 for i=iend:deltai:timeW
@@ -142,11 +141,13 @@ classdef PROfunctions
                     inputArg1.path(int32(i/deltai),8)=Ly;
                     inputArg1.path(int32(i/deltai),9)=Cz;
                     inputArg1.path(int32(i/deltai),10)=alpha;
-                    if  (Ly>Hmin) || (w<0) || ((ax<0) && (V<inputArg1.maxV)) || (Lx>Lmax)
+                    if  (Ly>Hmin) || (w<0) || ((ax<0) && (V<10)) || (Lx>Lmax)
                         break
                     end
                 end
-                if (w<0) || ((ax<0) && (V<inputArg1.maxV)) || (Lx>Lmax) || (i==timeW)
+                if (w<0) || ((ax<0) && (V<10)) || (Lx>Lmax) || (i==timeW)
+                    inputArg1.start(1)= 1;
+                    inputArg1.start(2)= i;
                     break
                 else
                     inputArg1.PAYLOAD=m;
