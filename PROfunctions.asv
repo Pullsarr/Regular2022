@@ -91,10 +91,10 @@ classdef PROfunctions
                 V=0;
                 alpha=0;
                 Q=mc*g;
-                alpha_w=deg2rad(inputArg1.maxw(1));
+                alpha_w=deg2rad(inputArg1.maxw);
                 for i=deltai:deltai:timeW
                     Fz= (1/2)*rho*Vx^2*Czstart*inputArg1.S;
-                    Ps=interp1(Ciag.data(:,1),Ciag.data(:,2),V,"linear",'extrap')*g;
+                    Ps=interp1(Ciag.data(:,1),Ciag.data(:,2),V,"linear")*g;
                     Rx=Ps-mi*Q-rho*(1/2)*inputArg1.S*V^2*inputArg1.min(1,2)*wspKOWAL;
                     ax=Rx/(mc);
                     Vx=Vx+ax*deltai;
@@ -131,7 +131,7 @@ classdef PROfunctions
                     Ly=Ly+w*deltai;
                     alpha=rad2deg(-atan(w/Vx));
                     V=Vx*cos(alpha_w)+abs(sin(alpha_w))*w;
-                    Ps=interp1(Ciag.data(:,1),Ciag.data(:,2),V,"linear",'extrap')*g;
+                    Ps=interp1(Ciag.data(:,1),Ciag.data(:,2),V,"linear")*g;
                     inputArg1.path(int32(i/deltai),1)=i;
                     inputArg1.path(int32(i/deltai),2)=ax;
                     inputArg1.path(int32(i/deltai),3)=ay;
