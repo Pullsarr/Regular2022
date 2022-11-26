@@ -32,6 +32,8 @@ classdef takeOFF_functions
         deltai=0.001; %iteration step
         mi=0.04; %rolling resistance coefficient
         Drag_k=1.3; %drag imaginary coefficient
+        Vxopt=11; %optimum Vx
+        Vyopt=2.2; %optimum w
     end
 
     methods (Static)
@@ -78,6 +80,31 @@ classdef takeOFF_functions
             end
             obj=Config;
         end
+        function obj =maxclimb(Config,Ciag)
+            g=takeOFF_functions.g;
+            Drag_k= takeOFF_functions.Drag_k;
+            mi= takeOFF_functions.mi;
+            rho=takeOFF_functions.rho;
+            Vx=takeOFF_functions.Vxopt;
+            Vy=takeOFF_functions.Vyopt;
+            S=Config.geo.S;
+            V=sqrt(Vx^2+Vy^2);
+            beta=atan(Vy/Vx);
+            Ps=interp1(Ciag.data(:,1),Ciag.data(:,2),Vx,"linear",'extrap')*g;
+            Ropt=0;
+            for gamma=0:0.5:15
+                Cz= interp1(Config.beta,Config.Cz,gamma-beta+Config.min.beta,"linear","extrap");
+                Cx= interp1(Config.beta,Config.Cx,gamma-beta+Config.min.beta,"linear","extrap");
+                Fy= (1/2)*rho*V^2*Cz*S;
+                Fx= (1/2)*rho*V^2*Cx*S;
+                Roptnew=Fy*cos(beta)+Ps*sin(gamma)-Fx*sin(beta)*Drag_k;
+                if Roptnew>Ropt
+                    Config.gamma=gamma;
+                    Ropt=Roptnew;
+                end
+            end
+            obj=Config;
+        end
         function obj=flight_mech(Config,Ciag,S,POS,Vod,gamma,mTOW)
             %% function to calculate reactions of aircraft
             %calculate dynamic thrust, drag coefficient, lift coefficient,
@@ -86,7 +113,7 @@ classdef takeOFF_functions
             Drag_k= takeOFF_functions.Drag_k;
             mi= takeOFF_functions.mi;
             rho=takeOFF_functions.rho;
-            Q=mTOW;
+            Q=mTOW*g;
             Ps=interp1(Ciag.data(:,1),Ciag.data(:,2),POS.Vx,"linear",'extrap')*g;
             Cz= interp1(Config.beta,Config.Cz,gamma-POS.beta+Config.min.beta,"linear","extrap");
             Cx= interp1(Config.beta,Config.Cx,gamma-POS.beta+Config.min.beta,"linear","extrap");
@@ -136,8 +163,9 @@ classdef takeOFF_functions
             g=takeOFF_functions.g;
             deltai=takeOFF_functions.deltai;
             Config.PAYLOAD=0;
+            Config.MTOW=Config.geo.Mo;
             S=Config.geo.S;
-            for PAYLOAD=5:0.2:100
+            for PAYLOAD=7:0.2:100
                 mTOW=PAYLOAD+Config.geo.Mo;
                 POS.V=0;
                 POS.Vx=0;
@@ -260,6 +288,74 @@ classdef takeOFF_functions
             end
             obj=Config;
         end
+        function obj= start_climb(Config,Ciag,timeW,MFV, MCV,Rot2_angle, Rot2_time,Hmin,Lmax)
+            rho=takeOFF_functions.rho;
+            g=takeOFF_functions.g;
+            deltai=takeOFF_functions.deltai;
+            S=Config.geo.S;
+            Config.PAYLOADclimb=0;
+            for PAYLOAD=7:0.2:100
+                mTOW=PAYLOAD+Config.geo.Mo;
+                POS.V=0;
+                POS.Vx=0;
+                POS.Vy=0;
+                POS.Lx=0;
+                POS.Ly=0;
+                POS.beta=0;
+                Q=mTOW*g;
+                gamma=0;
+                % calculate take-off velocity as 1.2 velocity of force
+                % balance
+                Vod=1.2*sqrt(2*Q/(rho*S*Config.min.Cz));
+                %% I phase- run up
+                % phase is end when aircraft pass the Lstart distance
+                for i=deltai:deltai:timeW
+                    ACC=takeOFF_functions.flight_mech(Config,Ciag,S,POS,Vod,gamma,mTOW);
+                    POS=takeOFF_functions.positioner(POS,deltai,ACC);
+                    if (POS.V>Vod)
+                        i1=i;
+                        break
+                    end
+                end
+                %% II phase- ground rotation
+                for i=i1:deltai:timeW
+                    ACC=takeOFF_functions.flight_mech(Config,Ciag,S,POS,Vod,gamma,mTOW);
+                    POS=takeOFF_functions.positioner(POS,deltai,ACC);
+                    if i<=(i1+Rot2_time)
+                        gamma=((i-i1)/Rot2_time)*deg2rad(Rot2_angle);
+                    else
+                        i2=i;
+                        break
+                    end
+                end
+                if (POS.Vx<MFV)
+                    Config.Erorrclimb= 'R22 could not maintain speed during air rotation';
+                    break
+                end
+                %% III phase- climbing
+                for i=i2:deltai:timeW
+                    ACC=takeOFF_functions.flight_mech(Config,Ciag,S,POS,Vod,gamma,mTOW);
+                    POS=takeOFF_functions.positioner(POS,deltai,ACC);
+                    if (POS.Ly>Hmin) || (POS.Lx>Lmax) || (POS.Vx<MFV) || (POS.Vy<MCV)
+                        break
+                    end
+                end
+                if (POS.Ly>Hmin)
+                    Config.PAYLOADclimb=PAYLOAD;
+                    Config.MTOWclimb=mTOW;
+                elseif (POS.Lx>Lmax)
+                    Config.Erorrclimb= 'R22 could not climb in limiting distance';
+                    break
+                elseif (POS.Vx<MFV)
+                    Config.Erorrclimb= 'R22 could not maintain speed during climb';
+                    break
+                elseif (POS.Vy<MCV)
+                    Config.Erorrclimb='R22 could not climb at MCV';
+                    break
+                end
+            end
+            obj=Config;
+        end
         function obj = pathing(Config,Ciag,timeW,Lstart,MFV, MCV,Rot1_angle,Rot2_angle, Rot1_time, Rot1B_time, Rot2_time,Hmin,Lmax)
             rho=takeOFF_functions.rho;
             g=takeOFF_functions.g;
@@ -352,9 +448,34 @@ classdef takeOFF_functions
             Config.FFS= 3*Config.FS+Config.WS;
             obj=Config;
         end
-        function obj= sorting(a,b)
-            c= a*takeOFF_functions.g+b;
-            obj=c;
+        function obj= plotter(A)
+            x=A(:, 1);
+            y=A(:,2);
+            z1=A(:,3);
+            z2=A(:,4);
+            xspace=linspace(min(x),max(x),50);
+            yspace=linspace(min(y),max(y),50);
+            [X Y]= meshgrid(xspace,yspace);
+            f1 = scatteredInterpolant(x,y,z1,'natural');
+            Z1 = f1(X,Y);
+            f2 = scatteredInterpolant(x,y,z2,'natural');
+            Z2 = f2(X,Y);
+            figure('Renderer', 'painters', 'Position', [0 0 1200 600])
+            tiledlayout(1,2);
+            nexttile
+            surf(X,Y,Z1);
+            grid on
+            title("Maximum Take-Off Mass")
+            colorbar
+            xlabel('AR'), ylabel('B'), zlabel('MTOW')
+            nexttile
+            surf(X,Y,Z2);
+            grid on
+            title("Final Flight Score")
+            colorbar
+            xlabel('AR'), ylabel('B'), zlabel('FFS')
+            saveas(gcf,'TakeoffPlot.jpg');
+            obj=A;
         end
     end
 end
