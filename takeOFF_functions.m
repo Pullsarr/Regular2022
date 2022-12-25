@@ -165,7 +165,7 @@ classdef takeOFF_functions
             Config.PAYLOAD=0;
             Config.MTOW=Config.geo.Mo;
             S=Config.geo.S;
-            for PAYLOAD=7:0.2:100
+            for PAYLOAD=4:0.2:100
                 mTOW=PAYLOAD+Config.geo.Mo;
                 POS.V=0;
                 POS.Vx=0;
@@ -294,7 +294,7 @@ classdef takeOFF_functions
             deltai=takeOFF_functions.deltai;
             S=Config.geo.S;
             Config.PAYLOADclimb=0;
-            for PAYLOAD=7:0.2:100
+            for PAYLOAD=4:0.2:100
                 mTOW=PAYLOAD+Config.geo.Mo;
                 POS.V=0;
                 POS.Vx=0;
@@ -477,8 +477,18 @@ classdef takeOFF_functions
             saveas(gcf,'TakeoffPlot.jpg');
             obj=A;
         end
+        function obj=massaver(FINAL)
+            for i=1:length(FINAL)
+                Z(i,1)=convertCharsToStrings(FINAL(i).name);
+                Z(i,2)=FINAL(i).geo.Mo;
+                Z(i,3)=FINAL(i).MTOW;
+            end
+            Vars=["name","Mo","MTOW"];
+            Ztab=array2table(Z,"VariableNames",Vars);
+            writetable(Ztab,'MassTable.xlsx');
+        end
+        end
     end
-end
 
 
 

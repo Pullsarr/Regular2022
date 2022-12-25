@@ -29,11 +29,12 @@ for i=1:length(files)
     e(i)=takeOFF_functions.maxclimb(d(i),Ciag);
     f(i)=takeOFF_functions.start_anal(e(i),Ciag,timeW,Lstart,MFV,MCV,Rot1_angle,Rot2_angle,Rot1_time,Rot1B_time, Rot2_time,Hmin,Lmax);
     g(i)=takeOFF_functions.pathing(f(i),Ciag,timeW,Lstart,MFV,MCV, Rot1_angle,Rot2_angle,Rot1_time,Rot1B_time, Rot2_time,Hmin,Lmax);
-    h(i)=takeOFF_functions.start_climb(g(i),Ciag,timeW,MFV, MCV,Rot2_angle, Rot2_time,Hmin,Lmax);
-    FINAL(i)=takeOFF_functions.final_points(h(i));
+    %h(i)=takeOFF_functions.start_climb(g(i),Ciag,timeW,MFV, MCV,Rot2_angle, Rot2_time,Hmin,Lmax);
+    FINAL(i)=takeOFF_functions.final_points(g(i));
     TBplot(i,1)=FINAL(i).geo.AR;
     TBplot(i,2)=FINAL(i).geo.B;
     TBplot(i,3)=FINAL(i).FFS;
     TBplot(i,4)=FINAL(i).MTOW;
 end
 takeOFF_functions.plotter(A);
+takeOFF_functions.massaver(FINAL);
